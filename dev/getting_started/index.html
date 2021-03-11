@@ -12,21 +12,21 @@ tspan = (0., 20.)
 p = (0.2,0.2,3.0)
 prob = ODEProblem(fitz, u0, tspan, p)</code></pre><h2 id="Step-2:-Solving-a-problem"><a class="docs-heading-anchor" href="#Step-2:-Solving-a-problem">Step 2: Solving a problem</a><a id="Step-2:-Solving-a-problem-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Solving-a-problem" title="Permalink"></a></h2><p>Currently, ProbNumDiffEq.jl implements two probabilistic numerical methods: <code>EK0</code> and <code>EK1</code>. In this example we solve the ODE with the default <code>EK0</code>, for high tolerance levels.</p><pre><code class="language-julia">sol = solve(prob, EK0(), abstol=1e-1, reltol=1e-2)</code></pre><h2 id="Step-3:-Analyzing-the-solution"><a class="docs-heading-anchor" href="#Step-3:-Analyzing-the-solution">Step 3: Analyzing the solution</a><a id="Step-3:-Analyzing-the-solution-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Analyzing-the-solution" title="Permalink"></a></h2><p>Just as in DifferentialEquations.jl, the result of <code>solve</code> is a solution object, and we can access the (mean) values and timesteps as usual</p><pre><code class="language-julia-repl">julia&gt; sol[end]
 2-element Array{Float64,1}:
- 2.014161932037638
- 0.6470035289822642
+ 2.0141619320376365
+ 0.6470035289822644
 
 julia&gt; sol.u[5]
 2-element Array{Float64,1}:
- 0.21939865115492327
+ 0.21939865115492324
  1.1918319025337822
 
 julia&gt; sol.t[8]
 0.9316395737934081</code></pre><p>However, the solver returns a <em>probabilistic</em> solution, here a <a href="https://github.com/mschauer/GaussianDistributions.jl">Gaussian</a> distribution over solution values:</p><pre><code class="language-julia-repl">julia&gt; sol.pu[end]
-Gaussian{Array{Float64,1},ProbNumDiffEq.SquarerootMatrix{Float64,Array{Float64,2},Array{Float64,2}}}([2.014161932037638, 0.6470035289822642], [0.00042612161123902484 0.0; 0.0 0.00042612161123902484])</code></pre><p>It is often convenient to look at means, covariances, and standard deviations via Statistics.jl:</p><pre><code class="language-julia-repl">julia&gt; using Statistics
+Gaussian{Array{Float64,1},ProbNumDiffEq.SquarerootMatrix{Float64,Array{Float64,2},Array{Float64,2}}}([2.0141619320376365, 0.6470035289822644], [0.0004261216112387373 0.0; 0.0 0.0004261216112387373])</code></pre><p>It is often convenient to look at means, covariances, and standard deviations via Statistics.jl:</p><pre><code class="language-julia-repl">julia&gt; using Statistics
 
 julia&gt; mean(sol.pu[5])
 2-element Array{Float64,1}:
- 0.21939865115492327
+ 0.21939865115492324
  1.1918319025337822
 
 julia&gt; cov(sol.pu[5])
@@ -36,8 +36,8 @@ julia&gt; cov(sol.pu[5])
 
 julia&gt; std(sol.pu[5])
 2-element Array{Float64,1}:
- 0.0013542971825724203
- 0.0013542971825724203</code></pre><p>By default, the posterior distribution can be evaluated for arbitrary points in time <code>t</code> by treating <code>sol</code> as a function:</p><pre><code class="language-julia-repl">julia&gt; mean(sol(0.45))
+ 0.0013542971825724168
+ 0.0013542971825724168</code></pre><p>By default, the posterior distribution can be evaluated for arbitrary points in time <code>t</code> by treating <code>sol</code> as a function:</p><pre><code class="language-julia-repl">julia&gt; mean(sol(0.45))
 2-element Array{Float64,1}:
  -0.2779443252075745
   1.1677425412790965</code></pre><h3 id="Plotting-Solutions"><a class="docs-heading-anchor" href="#Plotting-Solutions">Plotting Solutions</a><a id="Plotting-Solutions-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-Solutions" title="Permalink"></a></h3><p>Finally, we can conveniently visualize the result through <a href="https://github.com/JuliaPlots/Plots.jl">Plots.jl</a>:</p><pre><code class="language-julia">using Plots
@@ -46,4 +46,4 @@ connect: Connection refused
 GKS: can&#39;t connect to GKS socket application
 
 GKS: Open failed in routine OPEN_WS
-GKS: GKS not in proper state. GKS must be either in the state WSOP or WSAC in routine ACTIVATE_WS</pre><p><img src="../figures/fitzhugh_nagumo.svg" alt="Fitzhugh-Nagumo Solution"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../solvers/">Solvers and Options »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 10 March 2021 22:39">Wednesday 10 March 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+GKS: GKS not in proper state. GKS must be either in the state WSOP or WSAC in routine ACTIVATE_WS</pre><p><img src="../figures/fitzhugh_nagumo.svg" alt="Fitzhugh-Nagumo Solution"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../solvers/">Solvers and Options »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 11 March 2021 18:15">Thursday 11 March 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
