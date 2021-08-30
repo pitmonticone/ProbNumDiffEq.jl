@@ -89,6 +89,7 @@ Implemented in Joseph Form.
 See also: [`predict`](@ref)
 """
 function update!(x_out::Gaussian, x_pred::Gaussian, measurement::Gaussian,
+                 linearize_at::AbstractVector,
                  H::AbstractMatrix, R,
                  K1::AbstractMatrix, K2::AbstractMatrix,
                  M_cache::AbstractMatrix)
@@ -103,7 +104,8 @@ function update!(x_out::Gaussian, x_pred::Gaussian, measurement::Gaussian,
     K = _matmul!(K2, K1, S_inv)
 
     # x_out.μ .= m_p .+ K * (0 .- z)
-    x_out.μ .= m_p .- _matmul!(x_out.μ, K, z)
+    # x_out.μ .= m_p .- _matmul!(x_out.μ, K, z)
+    x_out.μ .= m_p .- _matmul!(x_out.μ, K, (z + H * (m_p - linearize_at)))
 
     # M_cache .= I(D) .- mul!(M_cache, K, H)
     _matmul!(M_cache, K, H, -1, 0)

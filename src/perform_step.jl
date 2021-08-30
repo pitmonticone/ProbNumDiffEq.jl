@@ -19,6 +19,70 @@ function OrdinaryDiffEq.initialize!(integ, cache::GaussianODEFilterCache)
                                    mul!(cache.pu_tmp, cache.SolProj, cache.x))
 end
 
+
+
+function iekf_refine!(integ, cache)
+    tnew = integ.t + integ.dt
+    @unpack x_pred, x_filt, SolProj = cache
+    u_pred = copy(cache.u_pred)
+
+
+    # Do the IEKF stuff here!
+    # ϵ₁, ϵ₂ = 1e-25, 1e-15
+    ϵ₁ = ϵ₂ = integ.opts.abstol
+
+    m_i = x_pred.μ
+    z_i = cache.measurement.μ
+    m_i_new = x_filt.μ
+    K = cache.K2
+    @assert !iszero(m_i_new .- m_i)
+
+    # @info "norms after the first normal update" norm(m_i .- m_i_new) norm(z_i)
+    i = 0
+    maxiters = 10
+
+    if norm(m_i_new .- m_i) < ϵ₁ && norm(z_i) < ϵ₂
+        # @info "directly accepted!!!"
+        return
+    end
+
+    while i < maxiters
+        i += 1
+        # @info "IEKF iteration $i" m_i m_i_new
+        # @info "IEKF iteration $i" norm(m_i_new .- m_i) norm(z_i)
+
+        # Re-evaluate the measurement function to compute z_i, H_i
+        evaluate_ode!(integ, u_pred, m_i, tnew) # overwrites cache.du, cache.H, cache.measurement.μ
+        compute_measurement_covariance!(cache) # overwrites cache.measurement.Σ
+
+        x_filt = update!(x_filt, x_pred, cache.measurement, m_i,
+                         cache.H, cache.R, cache.K1, cache.K2, cache.x_tmp2.Σ.mat)
+
+        m_i_new = x_filt.μ
+
+        if norm(m_i_new .- m_i) < ϵ₁ && norm(z_i) < ϵ₂
+            m_i = m_i_new
+            _matmul!(view(u_pred, :), SolProj, m_i)
+            break
+        end
+
+        # if i > 1 && m_i_new != m_i
+        #     @info "they are not the same now!"
+        # end
+        m_i = m_i_new
+        _matmul!(view(u_pred, :), SolProj, m_i)
+        # @info "?" m_i_new norm(m_i_new .- m_i) norm(z_i)
+    end
+
+    if !(norm(m_i_new .- m_i) < ϵ₁ && norm(z_i) < ϵ₂)
+        # @info "IEKF did not converge!" norm(m_i_new .- m_i) norm(z_i) < ϵ₂
+    else
+        # @info "IEKF converged after $i iterations!"
+    end
+
+end
+
+
 """Perform a step
 
 Not necessarily successful! For that, see `step!(integ)`.
@@ -53,7 +117,7 @@ function OrdinaryDiffEq.perform_step!(integ, cache::GaussianODEFilterCache, repe
     _matmul!(view(u_pred, :), SolProj, x_pred.μ)
 
     # Measure
-    evaluate_ode!(integ, x_pred, tnew)
+    evaluate_ode!(integ, u_pred, x_pred.μ, tnew)
 
     if isdynamic(cache.diffusionmodel)
         # Estimate diffusion
@@ -76,6 +140,11 @@ function OrdinaryDiffEq.perform_step!(integ, cache::GaussianODEFilterCache, repe
         cache.local_diffusion, cache.global_diffusion =
             estimate_diffusion(cache.diffusionmodel, integ)
     end
+
+    x_filt = update!(integ, x_pred)
+
+    # Perform IEKF iterations to refine the solution
+    # iekf_refine!(integ, cache)
 
     # Likelihood
     # cache.log_likelihood = logpdf(cache.measurement, zeros(d))
@@ -102,7 +171,7 @@ function OrdinaryDiffEq.perform_step!(integ, cache::GaussianODEFilterCache, repe
     reject = integ.opts.adaptive && integ.EEst >= one(integ.EEst)
     if !reject
         # Update
-        x_filt = update!(integ, x_pred)
+        # x_filt = update!(integ, x_pred)
 
         # Save into u_filt and integ.u
         mul!(view(u_filt, :), SolProj, x_filt.μ)
@@ -118,9 +187,9 @@ function OrdinaryDiffEq.perform_step!(integ, cache::GaussianODEFilterCache, repe
     end
 end
 
-function evaluate_ode!(integ, x_pred, t, second_order::Val{false})
+function evaluate_ode!(integ, u_pred, x_pred_mean, t, second_order::Val{false})
     @unpack f, p, dt, alg = integ
-    @unpack u_pred, du, ddu, measurement, R, H = integ.cache
+    @unpack du, ddu, measurement, R, H = integ.cache
     @assert iszero(R)
 
     @unpack E0, E1 = integ.cache
@@ -130,8 +199,8 @@ function evaluate_ode!(integ, x_pred, t, second_order::Val{false})
     # Mean
     _eval_f!(du, u_pred, p, t, f)
     integ.destats.nf += 1
-    # z .= E1*x_pred.μ .- du
-    _matmul!(z, E1, x_pred.μ)
+    # z .= E1*x_pred_mean .- du
+    _matmul!(z, E1, x_pred_mean)
     z .-= du[:]
 
     # Cov
@@ -159,7 +228,7 @@ function evaluate_ode!(integ, x_pred, t, second_order::Val{false})
     return measurement
 end
 
-function evaluate_ode!(integ, x_pred, t, second_order::Val{true})
+function evaluate_ode!(integ, u_pred, x_pred_mean, t, second_order::Val{true})
     @unpack f, p, dt, alg = integ
     @unpack d, u_pred, du, ddu, measurement, R, H = integ.cache
     @assert iszero(R)
@@ -170,15 +239,15 @@ function evaluate_ode!(integ, x_pred, t, second_order::Val{true})
     z, S = measurement.μ, measurement.Σ
 
     # Mean
-    # _u_pred = E0 * x_pred.μ
-    # _du_pred = E1 * x_pred.μ
+    # _u_pred = E0 * x_pred_mean
+    # _du_pred = E1 * x_pred_mean
     if isinplace(f)
         f.f1(du2, view(u_pred, 1:d), view(u_pred, d+1:2d), p, t)
     else
         du2 .= f.f1(view(u_pred, 1:d), view(u_pred, d+1:2d), p, t)
     end
     integ.destats.nf += 1
-    z .= E2*x_pred.μ .- du2[:]
+    z .= E2*x_pred_mean .- du2[:]
 
     # Cov
     if alg isa EK1
@@ -209,8 +278,8 @@ function evaluate_ode!(integ, x_pred, t, second_order::Val{true})
 
     return measurement
 end
-evaluate_ode!(integ, x_pred, t) = evaluate_ode!(
-    integ, x_pred, t, Val(integ.f isa DynamicalODEFunction))
+evaluate_ode!(integ, u_pred, x_pred_mean, t) = evaluate_ode!(
+    integ, u_pred, x_pred_mean, t, Val(integ.f isa DynamicalODEFunction))
 
 # The following functions are just there to handle both IIP and OOP easily
 _eval_f!(du, u, p, t, f::AbstractODEFunction{true}) = f(du, u, p, t)
@@ -224,7 +293,7 @@ compute_measurement_covariance!(cache) =
 function update!(integ, prediction)
     @unpack measurement, H, R, x_filt = integ.cache
     @unpack K1, K2, x_tmp2 = integ.cache
-    update!(x_filt, prediction, measurement, H, R, K1, K2, x_tmp2.Σ.mat)
+    update!(x_filt, prediction, measurement, integ.cache.x_pred.μ, H, R, K1, K2, x_tmp2.Σ.mat)
     # assert_nonnegative_diagonal(x_filt.Σ)
     return x_filt
 end
