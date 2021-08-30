@@ -48,30 +48,31 @@ function OrdinaryDiffEq.perform_step!(integ, cache::GaussianODEFilterCache, repe
     @. Ah = PI.diag .* A .* P.diag'
     X_A_Xt!(Qh, Q, PI)
 
-    if isdynamic(cache.diffusionmodel)  # Calibrate, then predict cov
+    # Predict mean
+    predict_mean!(x_pred, x, Ah)
+    _matmul!(view(u_pred, :), SolProj, x_pred.μ)
 
-        # Predict
-        predict_mean!(x_pred, x, Ah)
-        mul!(view(u_pred, :), SolProj, x_pred.μ)
+    # Measure
+    evaluate_ode!(integ, x_pred, tnew)
 
-        # Measure
-        evaluate_ode!(integ, x_pred, tnew)
-
+    if isdynamic(cache.diffusionmodel)
         # Estimate diffusion
         cache.local_diffusion, cache.global_diffusion =
             estimate_diffusion(cache.diffusionmodel, integ)
-        # Adjust prediction and measurement
+
+        # Compute predicted covariance, considering the diffusion
         predict_cov!(x_pred, x, Ah, Qh, cache.C1, cache.global_diffusion)
 
         # Compute measurement covariance only now
         compute_measurement_covariance!(cache)
+    else
+        # Compute predicted covariance with diffusion 1
+        predict_cov!(x_pred, x, Ah, Qh, cache.C1)
 
-    else  # Vanilla filtering order: Predict, measure, calibrate
-
-        predict!(x_pred, x, Ah, Qh)
-        _matmul!(u_pred, SolProj, x_pred.μ)
-        evaluate_ode!(integ, x_pred, tnew)
+        # Compute measurement covariance
         compute_measurement_covariance!(cache)
+
+        # Estimate diffusion - this requires an up-to-date measurement covariance!
         cache.local_diffusion, cache.global_diffusion =
             estimate_diffusion(cache.diffusionmodel, integ)
     end
