@@ -132,6 +132,7 @@ function OrdinaryDiffEq.alg_cache(
 
     # Measurement model
     R = zeros(uElType, d, d)
+    R = Matrix(1e-1I, d, d)
 
     # Pre-allocate a bunch of matrices
     h = zeros(uElType, d)
@@ -147,6 +148,11 @@ function OrdinaryDiffEq.alg_cache(
     pu_tmp =
         f isa DynamicalODEFunction ?
         Gaussian(zeros(uElType, 2d), SRMatrix(zeros(uElType, 2d, D))) : similar(measurement)
+
+    # Let the measurement have a non-squareroot matrix
+    S = zeros(uElType, d, d)
+    measurement = Gaussian(v, S)
+
     K = zeros(uElType, D, d)
     G = zeros(uElType, D, D)
     C1 = SRMatrix(zeros(uElType, D, 2D), zeros(uElType, D, D))

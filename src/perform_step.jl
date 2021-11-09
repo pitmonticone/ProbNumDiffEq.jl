@@ -19,6 +19,7 @@ function OrdinaryDiffEq.initialize!(integ, cache::GaussianODEFilterCache)
 
     # These are necessary since the solution object is not 100% initialized by default
     OrdinaryDiffEq.copyat_or_push!(integ.sol.x_filt, integ.saveiter, cache.x)
+    mul!(cache.pu_tmp, cache.SolProj, cache.x)
     OrdinaryDiffEq.copyat_or_push!(
         integ.sol.pu,
         integ.saveiter,
@@ -145,7 +146,7 @@ function evaluate_ode!(
 )
     @unpack f, p, dt, alg = integ
     @unpack u_pred, du, ddu, measurement, R, H = integ.cache
-    @assert iszero(R)
+    # @assert iszero(R)
 
     @unpack E0, E1, E2 = integ.cache
 
@@ -203,7 +204,7 @@ function evaluate_ode!(
 )
     @unpack f, p, dt, alg = integ
     @unpack d, u_pred, du, ddu, measurement, R, H = integ.cache
-    @assert iszero(R)
+    # @assert iszero(R)
 
     @unpack E0, E1, E2 = integ.cache
 
@@ -275,7 +276,7 @@ function evaluate_ode!(
 )
     @unpack f, p, dt, alg = integ
     @unpack d, u_pred, du, ddu, measurement, R, H = integ.cache
-    @assert iszero(R)
+    # @assert iszero(R)
     du2 = du
 
     @unpack E0, E1, E2 = integ.cache
@@ -334,7 +335,7 @@ _eval_f_jac!(ddu, u, p, t, f::AbstractODEFunction{true}) = f.jac(ddu, u, p, t)
 _eval_f_jac!(ddu, u, p, t, f::AbstractODEFunction{false}) = (ddu .= f.jac(u, p, t))
 
 compute_measurement_covariance!(cache) =
-    X_A_Xt!(cache.measurement.Σ, cache.x_pred.Σ, cache.H)
+    X_A_Xt!(cache.measurement.Σ, cache.x_pred.Σ, cache.H) + cache.R
 
 function update!(integ, prediction)
     @unpack measurement, H, R, x_filt = integ.cache
@@ -369,13 +370,14 @@ function smooth_all!(integ)
 end
 
 function estimate_errors(cache::GaussianODEFilterCache)
-    @unpack local_diffusion, Qh, H, d = cache
+    @unpack local_diffusion, Qh, H, d, q = cache
 
     if local_diffusion isa Real && isinf(local_diffusion)
         return Inf
     end
 
-    L = cache.m_tmp.Σ.squareroot
+    # L = cache.m_tmp.Σ.squareroot
+    L = zeros(d, d*(q+1))
 
     if local_diffusion isa Diagonal
         _matmul!(L, H, sqrt.(local_diffusion) * Qh.squareroot)
