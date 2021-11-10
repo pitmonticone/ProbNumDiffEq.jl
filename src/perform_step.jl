@@ -334,8 +334,20 @@ _eval_f!(du, u, p, t, f::AbstractODEFunction{false}) = (du .= f(u, p, t))
 _eval_f_jac!(ddu, u, p, t, f::AbstractODEFunction{true}) = f.jac(ddu, u, p, t)
 _eval_f_jac!(ddu, u, p, t, f::AbstractODEFunction{false}) = (ddu .= f.jac(u, p, t))
 
-compute_measurement_covariance!(cache) =
-    X_A_Xt!(cache.measurement.Σ, cache.x_pred.Σ, cache.H) + cache.R
+function compute_measurement_covariance!(cache)
+    @unpack d, q, K1 = cache
+    S_squareroot = K1'
+    S = cache.measurement.Σ
+
+    mul!(S_squareroot, cache.H, cache.x_pred.Σ.squareroot)
+    mul!(S, S_squareroot, S_squareroot')
+
+    if !iszero(cache.R)
+        S .+= cache.R
+    end
+
+    # @info "wtf?" S_squareroot S X_A_Xt(cache.x_pred.Σ, cache.H)
+end
 
 function update!(integ, prediction)
     @unpack measurement, H, R, x_filt = integ.cache
@@ -388,6 +400,7 @@ function estimate_errors(cache::GaussianODEFilterCache)
         _matmul!(L, H, Qh.squareroot)
         # error_estimate = local_diffusion .* diag(L*L')
         @tullio error_estimate[i] := L[i, j] * L[i, j]
+        # error_estimate += diag(cache.R)
         error_estimate .*= local_diffusion
 
         # @info "it's small anyways I guess?" error_estimate cache.measurement.μ .^ 2

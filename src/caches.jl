@@ -150,7 +150,7 @@ function OrdinaryDiffEq.alg_cache(
         Gaussian(zeros(uElType, 2d), SRMatrix(zeros(uElType, 2d, D))) : similar(measurement)
 
     # Let the measurement have a non-squareroot matrix
-    S = zeros(uElType, d, d)
+    S = alg isa EK0 ? Diagonal(zeros(uElType, d, d)) : zeros(uElType, d, d)
     measurement = Gaussian(v, S)
 
     K = zeros(uElType, D, d)

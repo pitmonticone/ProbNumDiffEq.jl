@@ -77,19 +77,24 @@ end
 
 struct DynamicDiffusion <: AbstractDynamicDiffusion end
 function estimate_diffusion(kind::DynamicDiffusion, integ)
-    @unpack d, R, H, Qh, measurement, m_tmp = integ.cache
+    @unpack d, R, H, Qh, measurement, m_tmp, K1 = integ.cache
     # @assert all(R .== 0) "The dynamic-diffusion assumes R==0!"
     z = measurement.μ
     e, HQH = m_tmp.μ, m_tmp.Σ
-    X_A_Xt!(HQH, Qh, H)
-    if hasproperty(HQH, :mat)
-        HQH = HQH.mat
-    end
+    HQH_sqrt = K1'
+
+    # X_A_Xt!(HQH, Qh, H)
+    mul!(HQH_sqrt, H, Qh.squareroot)
+    mul!(HQH, HQH_sqrt, HQH_sqrt')
+    # HQH .+= integ.cache.R
+
+    # HQH = HQH.mat
     if HQH isa Diagonal
         e .= z ./ HQH.diag
         σ² = dot(e, z) / d
         return σ², σ²
     else
+        # @info "??" HQH
         C = cholesky!(HQH)
         ldiv!(e, C, z)
         σ² = dot(z, e) / d
