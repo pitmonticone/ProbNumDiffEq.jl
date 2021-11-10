@@ -132,7 +132,7 @@ function OrdinaryDiffEq.alg_cache(
 
     # Measurement model
     R = zeros(uElType, d, d)
-    R = Matrix(1e-1I, d, d)
+    R = Matrix(alg.ode_noise * I, d, d)
 
     # Pre-allocate a bunch of matrices
     h = zeros(uElType, d)
