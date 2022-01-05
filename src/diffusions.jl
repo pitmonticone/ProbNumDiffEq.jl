@@ -59,8 +59,17 @@ function estimate_global_diffusion(rule::FixedDiffusion, integ)
     if _S isa Diagonal
         e .= v ./ _S.diag
     else
-        S_chol = cholesky!(_S)
-        ldiv!(e, S_chol, v)
+        local S_chol
+        try
+            S_chol = cholesky!(S)
+            ldiv!(e, S_chol, v)
+        catch
+            # @info "??" ForwardDiff.value.(S.mat) ForwardDiff.value.(S.squareroot)
+            SL = collect(qr(S.squareroot').R')
+            S_chol = Cholesky(SL, :L, 0)
+        end
+        e .= S_chol \ v
+        # ldiv!(e, S_chol, v)
     end
     diffusion_t = dot(v, e) / d
 
@@ -142,7 +151,13 @@ function local_scalar_diffusion(integ)
         σ² = dot(e, z) / d
         return σ²
     else
-        C = cholesky!(HQH.mat)
+        local C
+        try
+            C = cholesky!(HQH.mat)
+        catch
+            @info "??" ForwardDiff.value.(HQH.mat) ForwardDiff.value.(HQH.squareroot) ForwardDiff.value.(Qh.mat) ForwardDiff.value.(H)
+            error()
+        end
         ldiv!(e, C, z)
         σ² = dot(z, e) / d
         return σ²
