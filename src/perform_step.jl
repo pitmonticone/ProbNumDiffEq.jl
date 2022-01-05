@@ -85,17 +85,17 @@ function OrdinaryDiffEq.perform_step!(
     evaluate_ode!(integ, x_pred, tnew)
 
     # Estimate diffusion, and (if adaptive) the local error estimate; Stop here if rejected
-    cache.local_diffusion = estimate_local_diffusion(cache.diffusionmodel, integ)
     if integ.opts.adaptive
+        cache.local_diffusion = estimate_local_diffusion(cache.diffusionmodel, integ)
         integ.EEst = compute_scaled_error_estimate!(integ, cache)
         if integ.EEst >= one(integ.EEst)
             return
         end
     end
 
-    # Predict the covariance, using either the local or global diffusion
-    extrapolation_diff =
-        isdynamic(cache.diffusionmodel) ? cache.local_diffusion : cache.default_diffusion
+    extrapolation_diff = isdynamic(cache.diffusionmodel) ? cache.local_diffusion : cache.default_diffusion
+
+    # extrapolation_diff = cache.default_diffusion
     predict_cov!(x_pred, x, Ah, Qh, cache.C1, extrapolation_diff)
 
     # Compute measurement covariance only now; likelihood computation is currently broken
@@ -115,6 +115,10 @@ function OrdinaryDiffEq.perform_step!(
 
     # Advance the state
     copy!(integ.cache.x, integ.cache.x_filt)
+    # if integ.dt == integ.dtcache
+    #     integ.dtcache *= 1.2
+    # end
+    # @info "increased dt to" integ.dtcache
 
     return nothing
 end
