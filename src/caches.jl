@@ -154,11 +154,12 @@ function OrdinaryDiffEq.alg_cache(
     covmatcache = similar(G)
 
     if alg isa EK1FDB
-        H = [E1; E2]
-        v = [v; v]
-        S = SRMatrix(zeros(uElType, 2d, D), zeros(uElType, 2d, 2d))
-        measurement = Gaussian(v, S)
-        K = zeros(uElType, D, 2d)
+    #     H = [E1; E2]
+    #     v = [v; v]
+    #     S = SRMatrix(zeros(uElType, 2d, D), zeros(uElType, 2d, 2d))
+    #     measurement = Gaussian(v, S)
+    #     K = zeros(uElType, D, 2d)
+        error("Not implemented right now")
     end
 
     diffmodel = alg.diffusionmodel
