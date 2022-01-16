@@ -89,8 +89,9 @@ function smooth_solution!(integ)
     integ.sol.x_smooth = copy(integ.sol.x_filt)
 
     @unpack A, Q = integ.cache
-    @unpack x_smooth, t, diffusions = integ.sol
+    @unpack x_pred, x_smooth, t, diffusions = integ.sol
     @unpack x_tmp, x_tmp2 = integ.cache
+    x_tmp3 = integ.cache.x
     x = x_smooth
 
     for i in length(x)-1:-1:1
@@ -105,7 +106,8 @@ function smooth_solution!(integ)
 
         _gaussian_mul!(x_tmp, P, x[i])
         _gaussian_mul!(x_tmp2, P, x[i+1])
-        smooth!(x_tmp, x_tmp2, A, Q, integ.cache, diffusions[i])
+        _gaussian_mul!(x_tmp3, P, x_pred[i+1])
+        smooth!(x_tmp, x_tmp2, x_tmp3, A, Q, integ.cache, diffusions[i])
         _gaussian_mul!(x[i], PI, x_tmp)
 
         # Save the smoothed state into the solution
@@ -149,6 +151,7 @@ function DiffEqBase.savevalues!(
     # TODO If we don't want dense output, we might not want to save these!
     # It's not completely clear how to specify that though; They are also needed for sampling.
     if true || integ.alg.smooth
+        OrdinaryDiffEq.copyat_or_push!(integ.sol.x_pred, integ.saveiter, integ.cache.x_pred)
         OrdinaryDiffEq.copyat_or_push!(integ.sol.x_filt, integ.saveiter, integ.cache.x)
     end
     OrdinaryDiffEq.copyat_or_push!(

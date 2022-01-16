@@ -26,6 +26,8 @@ function OrdinaryDiffEq.initialize!(integ, cache::GaussianODEFilterCache)
     resize!(integ.k, integ.kshortsize)
     integ.k[1] = integ.u
 
+    OrdinaryDiffEq.copyat_or_push!(integ.sol.x_pred, integ.saveiter, cache.x)
+
     # Update the initial state to the known (given or computed with AD) initial values
     initial_update!(integ, cache)
 
