@@ -59,7 +59,7 @@ function condition_on!(
     S = Scache
 
     X_A_Xt!(S, x.Σ, H)
-    @assert isdiag(S)
+    # @assert isdiag(S)
     S_diag = diag(S)
     if any(iszero.(S_diag)) # could happen with a singular mass-matrix
         S_diag .+= 1e-20
