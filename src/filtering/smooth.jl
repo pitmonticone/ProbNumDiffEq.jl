@@ -91,7 +91,7 @@ function smooth!(
     # x_curr is the state at time t_n (filter estimate) that we want to smooth
     # x_next is the state at time t_{n+1}, already smoothed, which we use for smoothing
     @unpack d, q = cache
-    @unpack x_pred = cache
+    @unpack x_tmp = cache
     @unpack C1, G1, G2, C2 = cache
 
     # Prediction: t -> t+1
@@ -101,7 +101,9 @@ function smooth!(
     P_p_chol = Cholesky(x_next_pred.Σ.squareroot, :L, 0)
     G = rdiv!(_matmul!(G1, x_curr.Σ.mat, Ah'), P_p_chol)
 
-    x_curr.μ .+= G * (x_next_smoothed.μ .- x_next_pred.μ)
+    # x_curr.μ .+= G * (x_next_smoothed.μ .- x_next_pred.μ)
+    x_tmp.μ .= x_next_smoothed.μ .- x_next_pred.μ
+    _matmul!(x_curr.μ, G, x_tmp.μ, 1.0, 1.0)
 
     # Joseph-Form:
     M, L = C2.mat, C2.squareroot
