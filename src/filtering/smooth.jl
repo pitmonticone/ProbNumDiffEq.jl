@@ -82,7 +82,8 @@ See also: [`smooth`](@ref).
 """
 function smooth!(
     x_curr::SRGaussian,
-    x_next::SRGaussian,
+    x_next_smoothed::SRGaussian,
+    x_next_pred::SRGaussian,
     Ah::AbstractMatrix,
     Qh::SquarerootMatrix,
     cache::GaussianODEFilterCache,
